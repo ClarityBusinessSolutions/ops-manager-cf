@@ -1,0 +1,1593 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  AvailabilityZone1:
+    Description: The Availability Zone in which to create the Ops Manager instance.
+    Type: String
+    Default: us-east-1a
+  
+  AvailabilityZone2:
+    Description: The Availability Zone in which to create the Ops Manager instance.
+    Type: String
+    Default: us-east-1b
+  
+  AvailabilityZone3:
+    Description: The Availability Zone in which to create the Ops Manager instance.
+    Type: String
+    Default: us-east-1c
+  
+  AZSubnet1:
+    Description: Subnet Id
+    Type: String
+
+  AZSubnet2:
+    Description: Subnet Id
+    Type: String
+
+  AZSubnet3:
+    Description: Subnet Id
+    Type: String
+
+  Environment: 
+    Description: Dev, Test, or Prod
+    Type: String
+    Default: Dev
+
+  InstanceType:
+    Description: Amazon EC2 instance type for MongoDB.
+    Type: String
+    Default: m5.large
+    AllowedValues:
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.18xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+      - i3.large
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+      - x1e.32xlarge
+      - x1e.16xlarge
+      - x1e.8xlarge
+      - x1e.4xlarge
+      - x1e.2xlarge
+      - x1e.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+
+  Iops:
+    Type: String
+    Description: Iops of EBS volume when io1 type is chosen. Otherwise ignored
+    Default: '100'
+
+  KeyName:
+    Type: String
+
+  MongoDBAgentAmi:
+    Type: String
+    Description: The AMI of the MongoDB Agent
+
+  MongosInstanceType:
+    Description: Amazon EC2 instance type for MongoDB.
+    Type: String
+    Default: m5.large
+    AllowedValues:
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.18xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+      - i3.large
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+      - x1e.32xlarge
+      - x1e.16xlarge
+      - x1e.8xlarge
+      - x1e.4xlarge
+      - x1e.2xlarge
+      - x1e.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+
+  
+  VolumeSize:
+    Type: String
+    Description: EBS Volume Size (data) to be attached to node in GBs
+    Default: '25'
+
+  OpsManagerStackName:
+    Type: String
+    Description: The name of the Ops Manager base stack
+
+  OpsManagerProjectId:
+    Type: String
+    Description: The Ops Manager Project ID that the automation agent will be configured for
+
+  OpsManagerApiKey:
+    Type: String
+    Description: The Project API Key used to connect to Ops Manager
+
+  VolumeType:
+    Type: String
+    Description: EBS Volume Type (data) to be attached to node [io1,gp2]
+    Default: io1
+    AllowedValues:
+      - gp2
+      - io1
+
+Conditions:
+  UsePIops: !Equals
+    - !Ref 'VolumeType'
+    - io1
+
+Resources:
+
+  MongosNode1Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongos-1-volume-${AvailabilityZone1}-${Environment}"
+
+  MongosNode1NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet1'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongos-1-nic-${AvailabilityZone1}-${Environment}"
+
+  MongosNode1:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongos-1-${AvailabilityZone1}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+         Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongosNode1Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongosNode1NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongosNode1Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongosNode1Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'MongosInstanceType'
+  
+  MongosNode2Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongos-2-volume-${AvailabilityZone2}-${Environment}"
+
+  MongosNode2NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet2'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongos-2-nic-${AvailabilityZone2}-${Environment}"
+
+  MongosNode2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongos-2-${AvailabilityZone2}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongosNode2Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongosNode2NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongosNode2Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongosNode2Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'MongosInstanceType'
+    
+  MongosNode3Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongos-3-volume-${AvailabilityZone3}-${Environment}"
+
+  MongosNode3NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet3'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongos-3-nic-${AvailabilityZone3}-${Environment}"
+
+  MongosNode3:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongos-3-${AvailabilityZone3}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongosNode3Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongosNode3NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongosNode3Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongosNode3Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'MongosInstanceType'
+ 
+  MongoDBNode1Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-1-volume-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode1NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet1'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-1-shard-1-nic-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode1:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-1-${AvailabilityZone1}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode1Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode1NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode1Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode1Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+  
+  MongoDBNode2Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-2-volume-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode2NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet1'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-1-shard-2-nic-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode2:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-2-${AvailabilityZone1}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode2Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode2NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode2Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode2Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+  
+  MongoDBNode3Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-3-volume-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode3NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet1'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-1-shard-3-nic-${AvailabilityZone1}-${Environment}"
+
+  MongoDBNode3:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone1'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-1-shard-3-${AvailabilityZone1}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode3Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode3NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode3Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode3Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+
+  MongoDBNode4Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-1-volume-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode4NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet2'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-2-shard-1-nic-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode4:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-1-${AvailabilityZone2}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode4Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode4NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode4Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode4Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+
+  MongoDBNode5Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-2-volume-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode5NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet2'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-2-shard-2-nic-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode5:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-2-${AvailabilityZone2}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode5Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode5NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode5Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode5Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+ 
+  MongoDBNode6Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-3-volume-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode6NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet2'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-2-shard-3-nic-${AvailabilityZone2}-${Environment}"
+
+  MongoDBNode6:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone2'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-2-shard-3-${AvailabilityZone2}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode6Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode6NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode6Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode6Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+ 
+  MongoDBNode7Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-1-volume-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode7NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet3'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-3-shard-1-nic-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode7:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-1-${AvailabilityZone3}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode7Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode7NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode7Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode7Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+  
+  MongoDBNode8Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-2-volume-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode8NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet3'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-3-shard-2-nic-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode8:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-2-${AvailabilityZone3}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode8Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode8NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode8Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode8Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+  
+  MongoDBNode9Volume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-3-volume-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode9NetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Mongo Node
+      SubnetId: !Ref 'AZSubnet3'
+      GroupSet:
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServerSecurityGroup"
+        - Fn::ImportValue:
+            Fn::Sub: "${OpsManagerStackName}-MongoDBServersSecurityGroup"
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+        - Key: Name
+          Value: "mongodb-3-shard-3-nic-${AvailabilityZone3}-${Environment}"
+
+  MongoDBNode9:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone3'
+      Tags:
+        - Key: Name
+          Value: !Sub "mongodb-3-shard-3-${AvailabilityZone3}-${Environment}"
+      ImageId: !Ref "MongoDBAgentAmi"
+      IamInstanceProfile: 
+        Fn::ImportValue:
+          Fn::Sub: "${OpsManagerStackName}-MongoDBNodeIAMProfile"
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref MongoDBNode9Volume
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref 'MongoDBNode9NetworkInterface'
+          DeviceIndex: '0'
+      UserData:
+        "Fn::Base64": !Sub 
+          - |
+            #!/bin/bash
+
+            #################################################################
+            # Make filesystem to store data
+            #################################################################
+            cat << 'ENDCONF' | tee /volume.txt
+              $(sudo nvme list | grep ${MongoDBNode9Volume} | awk '{ print $1 }')
+            ENDCONF
+
+            export VOLUME_TO_SEARCH=$(echo ${MongoDBNode9Volume} | sed "s/-//")
+            export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+            mkfs -t xfs $VOLUME_TO_MOUNT
+            mkdir -p /data
+            mount $VOLUME_TO_MOUNT /data
+
+            export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+            echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+            #################################################################
+            # Automation Agent Installation
+            #################################################################
+            curl -OL ${OpsManagerHost}/download/agent/automation/mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            rpm -i mongodb-mms-automation-agent-manager-latest.x86_64.rpm
+            sudo systemctl enable mongodb-mms-automation-agent.service
+
+            #################################################################
+            # Data Directory Creation
+            #################################################################
+            mkdir /data/db
+            chown mongod:mongod /data/db
+            mkdir /data/logs
+            chown mongod:mongod /data/logs
+            
+            #################################################################
+            # Automation Agent Configuration
+            #################################################################
+            cat << EOF | sudo tee /etc/mongodb-mms/automation-agent.config
+            mmsGroupId=${OpsManagerProjectId}
+            mmsApiKey=${OpsManagerApiKey}
+            mmsBaseUrl=${OpsManagerHost}
+            logFile=/var/log/mongodb-mms-automation/automation-agent.log
+            mmsConfigBackup=/var/lib/mongodb-mms-automation/mms-cluster-config-backup.json
+            logLevel=INFO
+            maxLogFiles=10
+            maxLogFileSize=268435456
+            # httpsCAFile=/etc/pki/tls/certs/ca.cert
+            # tlsRequireValidMMSServerCertificates=true
+            # tlsMMSServerClientCertificate=/etc/pki/tls/certs/$(hostname -f).pem
+            EOF
+
+            systemctl restart mongodb-mms-automation-agent
+          - OpsManagerHost:
+              Fn::ImportValue: 
+                Fn::Sub: "${OpsManagerStackName}-OpsManagerHost"
+      InstanceType: !Ref 'InstanceType'
+  
+Outputs:
+
+  MongosNode1:
+    Value: !GetAtt 'MongosNode1.PrivateDnsName'
+    Description: "mongos-1 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongos-1"
+
+  MongosNode2:
+    Value: !GetAtt 'MongosNode2.PrivateDnsName'
+    Description: "mongos-2 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongos-2"
+
+  MongosNode3:
+    Value: !GetAtt 'MongosNode3.PrivateDnsName'
+    Description: "mongos-3 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongos-3"
+
+  MongoDBNode1:
+    Value: !GetAtt 'MongoDBNode1.PrivateDnsName'
+    Description: "mongodb-1-shard-1 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-1-shard-1"
+
+  MongoDBNode2:
+    Value: !GetAtt 'MongoDBNode2.PrivateDnsName'
+    Description: "mongodb-1-shard-2 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-1-shard-2"
+
+  MongoDBNode3:
+    Value: !GetAtt 'MongoDBNode3.PrivateDnsName'
+    Description: "mongodb-1-shard-3 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-1-shard-3"
+
+  MongoDBNode4:
+    Value: !GetAtt 'MongoDBNode4.PrivateDnsName'
+    Description: "mongodb-2-shard-1 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-2-shard-1"
+
+  MongoDBNode5:
+    Value: !GetAtt 'MongoDBNode5.PrivateDnsName'
+    Description: "mongodb-2-shard-2 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-2-shard-2"
+
+  MongoDBNode6:
+    Value: !GetAtt 'MongoDBNode6.PrivateDnsName'
+    Description: "mongodb-2-shard-3 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-2-shard-3"
+
+  MongoDBNode7:
+    Value: !GetAtt 'MongoDBNode7.PrivateDnsName'
+    Description: "mongodb-3-shard-1 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-3-shard-1"
+
+  MongoDBNode8:
+    Value: !GetAtt 'MongoDBNode8.PrivateDnsName'
+    Description: "mongodb-3-shard-2 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-3-shard-2"
+
+  MongoDBNode9:
+    Value: !GetAtt 'MongoDBNode9.PrivateDnsName'
+    Description: "mongodb-3-shard-3 DNS"
+    Export:
+      Name: !Sub "${AWS::StackName}-mongodb-3-shard-3"
