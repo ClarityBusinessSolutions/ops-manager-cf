@@ -15,7 +15,7 @@ packer build -timestamp-ui .
 ## Destroying Agent Instances Stack
 
 ```shell
-aws cloudformation delete-stack --stack-name mongodb-agents-bah-stack
+aws cloudformation delete-stack --stack-name mongodb-agents-stack
 ```
 
 
