@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+# Set up yum
+set -euo pipefail
+
+# Force running as root
+# This prevents us from having to rewrite execute_command
+if (( "$(id -u)" != 0 )); then
+  exec sudo "$(readlink -f "$0")"
+fi
+
+# Plugin management
+# Disable fastestmirror. It creates more problems than it solves on our internal network.
+if [[ -f /etc/yum/pluginconf.d/fastestmirror.conf ]]; then
+  sed -ire 's/^enabled=.*/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
+fi
+
+# Global yum configuration
+# Prevent yum commands from succeeding if one of the listed packages is not found.
+yum-config-manager --save \
+  --setopt='skip_missing_names_on_install=False' \
+  --setopt='skip_missing_names_on_update=False' \
+  &>/dev/null
+
+## Install MongoDB Enterprise
+cat << 'ENDCONF' | sudo tee /etc/yum.repos.d/mongodb-enterprise-5.0.repo
+[mongodb-enterprise-5.0]
+name=MongoDB Enterprise Repository
+baseurl=https://repo.mongodb.com/yum/redhat/$releasever/mongodb-enterprise/5.0/$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-5.0.asc
+ENDCONF
+
+# Prepare for subsequent yum commands
+# This will be cleaned up later
+yum makecache

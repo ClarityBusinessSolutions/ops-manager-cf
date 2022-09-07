@@ -1,0 +1,38 @@
+#!/bin/bash
+#
+# Install MongoDB and Ops Manager
+set -euo pipefail
+
+# Force running as root
+# This prevents us from having to rewrite execute_command
+if (( "$(id -u)" != 0 )); then
+  exec sudo "$(readlink -f "$0")"
+fi
+
+# Run everything in a temporary directory
+tmpdir=$(mktemp -d)
+cd "${tmpdir}"
+
+_cleanup_tmpdir() {
+  if [[ -n "${tmpdir}" && -d "${tmpdir}" ]]; then
+    cd /  # Ensure we are not in the temp dir
+    rm -rf -- "${tmpdir}"
+  fi
+}
+
+trap _cleanup_tmpdir EXIT
+
+echo 0 > /sys/fs/selinux/enforce
+
+yum -y install \
+       cyrus-sasl \
+       cyrus-sasl-gssapi \
+       cyrus-sasl-plain \
+       krb5-libs \
+       libcurl \
+       net-snmp \
+       net-snmp-libs \
+       nvme-cli \
+       openldap \
+       openssl \
+       xz-libs 

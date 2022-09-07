@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# Install MongoDB and Ops Manager
+set -euo pipefail
+
+# Force running as root
+# This prevents us from having to rewrite execute_command
+if (( "$(id -u)" != 0 )); then
+  exec sudo "$(readlink -f "$0")"
+fi
+
+# Run everything in a temporary directory
+tmpdir=$(mktemp -d)
+cd "${tmpdir}"
+
+_cleanup_tmpdir() {
+  if [[ -n "${tmpdir}" && -d "${tmpdir}" ]]; then
+    cd /  # Ensure we are not in the temp dir
+    rm -rf -- "${tmpdir}"
+  fi
+}
+
+trap _cleanup_tmpdir EXIT
+
+
+## Install Dependencies
+yum -y install \
+       cyrus-sasl \
+       cyrus-sasl-gssapi \
+       cyrus-sasl-plain \
+       krb5-libs \
+       libcurl \
+       net-snmp \
+       net-snmp-libs \
+       nvme-cli \
+       openldap \
+       openssl \
+       xz-libs 
+
+
+
+yum install -y mongodb-enterprise-5.0.11 \
+               mongodb-enterprise-database-5.0.11 \
+               mongodb-enterprise-server-5.0.11 \
+               mongodb-enterprise-shell-5.0.11 \
+               mongodb-enterprise-mongos-5.0.11 \
+               mongodb-enterprise-tools-5.0.11
+
+# Install Ops Manager
+rpm -i /tmp/download/mongodb-mms-*.x86_64.rpm
+
+systemctl enable mongod
+
+# Add default info for configuring ops manager
+mv /opt/mongodb/mms/conf/conf-mms.properties /opt/mongodb/mms/conf/conf-mms.properties.old
+cat /opt/mongodb/mms/conf/conf-mms.properties.old /tmp/mms-conf/headless.properties > "${tmpdir}"/conf-mms.properties
+install -t /opt/mongodb/mms/conf -D -o root -g root -m 0644 "${tmpdir}"/conf-mms.properties
+
+# Version manifest
+# See `initial_download` script
+sudo install -t /opt/mongodb/mms/conf -D -o mongodb-mms -g mongodb-mms -m 0644 /tmp/download/mongodb_version_manifest.json
+
+systemctl enable mongodb-mms

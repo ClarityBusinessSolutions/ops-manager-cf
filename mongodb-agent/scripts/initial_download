@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Download MongoDB files required for installation
+# This will place all files in /tmp/download, for use in later scripts
+#
+# The following required environment variables determine the software versions to install:
+# - DB_TOOLS_VERSION: MongoDB Database Tools
+# - AUTOMATION_AGENT_VERSION: MongoDB Automation Agent
+#
+set -euo pipefail
+
+# Check required vars before we start downloading
+if [[ -z "${DB_TOOLS_VERSION}" ]]; then
+  echo "Error: DB_TOOLS_VERSION unset."
+  exit 1
+fi
+
+mkdir -p /tmp/download
+cd /tmp/download
+
+_curl() {
+  # Use a common set of script-safe options for cURL
+  curl -fsSL -m 60 "${@}"
+}
+
+_curl -O "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-rhel80-x86_64-${DB_TOOLS_VERSION}.tgz"
+
+

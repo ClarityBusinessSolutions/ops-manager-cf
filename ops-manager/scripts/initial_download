@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# Download MongoDB files required for installation
+# This will place all files in /tmp/download, for use in later scripts
+#
+# The following required environment variables determine the software versions to install:
+# - OPS_MANAGER_VERSION: MongoDB Ops Manager
+#
+set -euo pipefail
+
+# Check required vars before we start downloading
+if [[ -z "${OPS_MANAGER_VERSION}" ]]; then
+  echo "Error: OPS_MANAGER_VERSION unset."
+  exit 1
+fi
+
+mkdir -p /tmp/download
+cd /tmp/download
+
+_curl() {
+  # Use a common set of script-safe options for cURL
+  curl -fsSL -m 60 "${@}"
+}
+
+echo "Downloading Ops Manager"
+_curl -O "https://downloads.mongodb.com/on-prem-mms/rpm/mongodb-mms-${OPS_MANAGER_VERSION}.x86_64.rpm"
+
+# Ops Manager docs
+_curl -o ops-manager-docs.tgz "https://docs.opsmanager.mongodb.com/v5.0/mms-onprem.tar.gz"
+
+# Version manifest
+_curl -o mongodb_version_manifest.json "https://opsmanager.mongodb.com/static/version_manifest/5.0.json"

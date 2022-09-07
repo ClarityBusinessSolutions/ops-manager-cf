@@ -1,0 +1,487 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  AvailabilityZone:
+    Description: The Availability Zone in which to create the Ops Manager instance.
+    Type: String
+    Default: us-east-1a
+
+  Environment: 
+    Description: Dev, Test, or Prod
+    Type: String
+    Default: Dev
+
+  InstanceType:
+    Description: Amazon EC2 instance type for MongoDB.
+    Type: String
+    Default: m5.large
+    AllowedValues:
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+      - m5.12xlarge
+      - m5.24xlarge
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - c5.large
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - c5.9xlarge
+      - c5.18xlarge
+      - x1.16xlarge
+      - x1.32xlarge
+      - r4.large
+      - r4.xlarge
+      - r4.2xlarge
+      - r4.4xlarge
+      - r4.8xlarge
+      - r4.16xlarge
+      - i3.large
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+      - i3.16xlarge
+      - x1e.32xlarge
+      - x1e.16xlarge
+      - x1e.8xlarge
+      - x1e.4xlarge
+      - x1e.2xlarge
+      - x1e.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+
+  Iops:
+    Type: String
+    Description: Iops of EBS volume when io1 type is chosen. Otherwise ignored
+    Default: '100'
+
+  KeyName:
+    Type: String
+
+  MailHost:
+    Description: The host use to send email
+    Type: String
+    Default: localhost
+
+  MailPort:
+    Description: The port used to talk to the email host
+    Type: String
+    Default: 465
+
+  MailTransport:
+    Description: The transport method for email
+    Type: String
+    Default: 'smtp'
+
+  MongoDBAdminPassword:
+    AllowedPattern: ([A-Za-z0-9_@-]{8,32})
+    ConstraintDescription: 'Input your MongoDB database password, Min 8, Maximum of
+      32 characters. . Allowed characters are: [A-Za-z0-9_@-]'
+    Description: Enter your MongoDB Database Password, Min 8, maximum of 32 characters.
+    NoEcho: 'true'
+    Type: String
+
+  MongoDBAdminUsername:
+    Default: admin
+    NoEcho: 'true'
+    Description: MongoDB admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+
+  OpsManagerAdminEmail:
+    Description: The email address used to email the Administrator
+    Type: String
+    Default: 'example@example.com'
+
+  OpsManagerAmi:
+    Type: String
+
+  OpsManagerFromEmail:
+    Description: The email address used to send Ops Manager notifications
+    Type: String
+    Default: 'example@example.com'
+
+  OpsManagerReplyEmail:
+    Description: The email address used for replies to Ops Manager notifications
+    Type: String
+    Default: 'example@example.com'
+  
+  OpsManagerSubnet:
+    Description: Subnet to create the Ops Manager instance within
+    Type: String
+
+  OpsManagerMDBPassword:
+    AllowedPattern: ([A-Za-z0-9_@-]{8,32})
+    ConstraintDescription: 'Input your MongoDB database password, Min 8, Maximum of
+      32 characters. . Allowed characters are: [A-Za-z0-9_@-]'
+    Description: Enter your MongoDB Database Password, Min 8, maximum of 32 characters.
+    NoEcho: 'true'
+    Type: String
+
+  OpsManagerMDBUsername:
+    Default: mms
+    NoEcho: 'true'
+    Description: The username for the account that Ops Manager will use to connect to MongoDB 
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+  
+  OpsManagerPort:
+    Type: String
+    Description: Network port Ops Manager will be available on
+    Default: 8080
+
+  VersionSource:
+    Description: Indicates the source of MongoDB installer binaries.
+    Type: String
+    Default: hybrid
+    AllowedValues:
+      - remote
+      - hybrid
+      - local
+
+  VolumeSize:
+    Type: String
+    Description: EBS Volume Size (data) to be attached to node in GBs
+    Default: '25'
+
+  VolumeType:
+    Type: String
+    Description: EBS Volume Type (data) to be attached to node [io1,gp2]
+    Default: io1
+    AllowedValues:
+      - gp2
+      - io1
+
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC-ID of your existing Virtual Private Cloud (VPC) where you want
+      to depoy MongoDB cluster.
+
+Conditions:
+  UsePIops: !Equals
+    - !Ref 'VolumeType'
+    - io1
+
+Resources:
+
+  MongoDBServerAccessSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VPC'
+      GroupDescription: Instances with access to MongoDB server
+
+  MongoDBServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VPC'
+      GroupDescription: MongoDB server management and access ports
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref 'MongoDBServerAccessSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 27017
+          ToPort: 27030
+          SourceSecurityGroupId: !Ref 'MongoDBServerAccessSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 28017
+          ToPort: 28017
+          SourceSecurityGroupId: !Ref 'MongoDBServerAccessSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref 'MongoDBServerAccessSecurityGroup'
+
+  MongoDBServersSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref 'VPC'
+      GroupDescription: MongoDB inter-server communication and management ports
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref 'MongoDBServerSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 27017
+          ToPort: 27030
+          SourceSecurityGroupId: !Ref 'MongoDBServerSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 28017
+          ToPort: 28017
+          SourceSecurityGroupId: !Ref 'MongoDBServerSecurityGroup'
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref 'MongoDBServerSecurityGroup'
+
+  MongoDBNodeIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: mongodb-policy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:Describe*
+                  - ec2:AttachNetworkInterface
+                  - ec2:AttachVolume
+                  - ec2:CreateTags
+                  - ec2:CreateVolume
+                  - ec2:RunInstances
+                  - ec2:StartInstances
+                  - ec2:DeleteVolume
+                  - ec2:CreateSecurityGroup
+                  - ec2:CreateSnapshot
+                Resource: '*'
+  
+  MongoDBNodeIAMProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'MongoDBNodeIAMRole'
+
+  OpsManagerVolume:
+    Type: "AWS::EC2::Volume"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone'
+      Encrypted: true
+      Size: !Ref 'VolumeSize'
+      VolumeType: !Ref 'VolumeType'
+      Iops: !If
+        - UsePIops
+        - !Ref 'Iops'
+        - !Ref 'AWS::NoValue'
+      Tags: 
+        - Key: Name
+          Value: !Sub "${Environment}-OpsManagerDataVolume"
+
+  OpsManagerNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Description: Network Interface for Ops Manager
+      SubnetId: !Ref 'OpsManagerSubnet'
+      GroupSet:
+        - !Ref 'MongoDBServerSecurityGroup'
+        - !Ref 'MongoDBServersSecurityGroup'
+      SourceDestCheck: true
+      Tags:
+        - Key: Network
+          Value: Private
+
+  OpsManagerInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      AvailabilityZone: !Ref 'AvailabilityZone'
+      Tags: 
+        - Key: Name
+          Value: !Sub "${Environment}-OpsManager-01"
+      ImageId: !Ref "OpsManagerAmi"
+      IamInstanceProfile: !Ref 'MongoDBNodeIAMProfile'
+      KeyName: !Ref "KeyName"
+      Volumes:
+        - Device: /dev/xvdf
+          VolumeId: !Ref OpsManagerVolume
+      SecurityGroupIds:
+        - !Ref 'MongoDBServerSecurityGroup'
+        - !Ref 'MongoDBServersSecurityGroup'
+      UserData:
+        "Fn::Base64": !Sub |
+          #!/bin/bash
+          echo 0 > /sys/fs/selinux/enforce
+
+          #################################################################
+          # Make filesystem to store data
+          #################################################################
+          cat << 'ENDCONF' | tee /volume.txt
+            $(sudo nvme list | grep ${OpsManagerVolume} | awk '{ print $1 }')
+          ENDCONF
+
+          export VOLUME_TO_SEARCH=$(echo ${OpsManagerVolume} | sed "s/-//")
+          export VOLUME_TO_MOUNT=$(sudo nvme list | grep $VOLUME_TO_SEARCH | awk '{ print $1 }')
+
+          mkfs -t xfs $VOLUME_TO_MOUNT
+          mkdir -p /data
+          mount $VOLUME_TO_MOUNT /data
+
+          export VOLUME_UUID=$(sudo blkid -s UUID -o value $VOLUME_TO_MOUNT)
+          echo "UUID=$VOLUME_UUID /data xfs defaults,auto,noatime,noexec,rw 1 1" | tee -a /etc/fstab
+
+          systemctl stop mongod
+          systemctl stop mongodb-mms.service
+
+          mv /etc/mongod.conf /etc/mongod.conf.old
+
+          cat << 'ENDCONF' | tee /etc/mongod.conf
+          # mongod.conf
+          # for documentation of all options, see:
+          #   http://docs.mongodb.org/manual/reference/configuration-options/
+          # where to write logging data.
+          systemLog:
+            destination: file
+            logAppend: true
+            path: /data/logs/mongod.log
+
+          # Where and how to store data.
+          storage:
+            dbPath: /data/db
+            journal:
+              enabled: true
+
+          # how the process runs
+          processManagement:
+            fork: true  # fork and run in background
+            pidFilePath: /var/run/mongodb/mongod.pid  # location of pidfile
+            timeZoneInfo: /usr/share/zoneinfo
+          # network interfaces
+          net:
+            port: 27017
+            bindIp: 0.0.0.0  # Enter 0.0.0.0,:: to bind to all IPv4 and IPv6 addresses or, alternatively, use the net.bindIpAll setting.
+          
+          security:
+            authorization: enabled
+
+          ENDCONF
+
+          chown mongod:mongod /etc/mongod.conf
+
+          mkdir /data/db
+          chown mongod:mongod /data/db
+          mkdir /data/logs
+          chown mongod:mongod /data/logs
+
+          systemctl start mongod
+
+          mongo --port 27017 << EOF
+          use admin;
+          db.createUser({
+            user: "${MongoDBAdminUsername}",
+            pwd: "${MongoDBAdminPassword}",
+            roles: [ { role: "root", db: "admin" } ]
+          });
+          EOF
+
+          mongo -u ${MongoDBAdminUsername} -p ${MongoDBAdminPassword} --port 27017 << EOF
+          use admin;
+          db.createUser({
+            user: "${OpsManagerMDBUsername}",
+            pwd: "${OpsManagerMDBPassword}",
+            roles: [{
+                db: "admin",
+                role: "readWriteAnyDatabase"
+            }, {
+                db: "admin",
+                role: "dbAdminAnyDatabase"
+            }, {
+                db: "admin",
+                role: "clusterMonitor"
+            }]
+          });
+          EOF
+
+          cp /opt/mongodb/mms/conf/conf-mms.properties /opt/mongodb/mms/conf/conf-mms.properties.old
+
+          cat << 'ENDCONF' | tee /opt/mongodb/mms/conf/conf-mms.properties
+          mms.ignoreInitialUiSetup=true
+          mms.centralUrl=http://localhost:${OpsManagerPort}
+          mms.fromEmailAddr=${OpsManagerFromEmail}
+          mms.replyToEmailAddr=${OpsManagerReplyEmail}
+          mms.adminEmailAddr=${OpsManagerAdminEmail}
+          mms.mail.transport=${MailTransport}
+          mms.mail.hostname=${MailHost}
+          mms.mail.port=${MailPort}
+          automation.versions.source=${VersionSource}
+          mongo.mongoUri=mongodb://${OpsManagerMDBUsername}:${MongoDBAdminPassword}@localhost:27017
+          ENDCONF
+
+          chown mongod:mongod /opt/mongodb/mms/conf/conf-mms.properties
+
+          systemctl start mongodb-mms.service
+
+      InstanceType: !Ref 'InstanceType'
+Outputs:
+
+  MongoDBServerAccessSecurityGroup:
+    Value: !Ref MongoDBServerAccessSecurityGroup
+    Description: MongoDB Server Access Security Group
+    Export:
+      Name: !Sub "${AWS::StackName}-MongoDBServerAccessSecurityGroup"
+
+  MongoDBServerSecurityGroup:
+    Value: !Ref MongoDBServerSecurityGroup
+    Description: MongoDB server management and access ports Security Group
+    Export:
+      Name: !Sub "${AWS::StackName}-MongoDBServerSecurityGroup"
+
+  MongoDBServersSecurityGroup:
+    Value: !Ref MongoDBServersSecurityGroup
+    Description: MongoDB inter-server communication and management ports  Security Group
+    Export:
+      Name: !Sub "${AWS::StackName}-MongoDBServersSecurityGroup"
+
+  OpsManagerPrivateIp:
+    Value: !GetAtt 'OpsManagerInstance.PrivateIp'
+    Description: Private IP Address of Ops Manager Instance
+    Export:
+      Name: !Sub "${AWS::StackName}-OpsManagerPrivateIp"
+
+  OpsManagerHost:
+    Value: !Sub "http://${OpsManagerInstance.PrivateIp}:${OpsManagerPort}"
+    Description: The private host URL for automation agent use
+    Export:
+      Name: !Sub "${AWS::StackName}-OpsManagerHost"
+
+  OpsManagerInstancePublicIp:
+    Value: !GetAtt 'OpsManagerInstance.PublicIp'
+    Description: Public IP Address of Ops Manager Instance
+    Export:
+      Name: !Sub "${AWS::StackName}-OpsManagerPublicIp"
+
+  OpsManagerInstanceId:
+    Value: !Ref OpsManagerInstance
+    Description: Ops Manager EC2 Instance ID
+
+  MongoDBNodeIAMProfile:
+    Value: !Ref MongoDBNodeIAMProfile
+    Description: The AMI Role for MongoDB servers
+    Export:
+      Name: !Sub "${AWS::StackName}-MongoDBNodeIAMProfile"
+

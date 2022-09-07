@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# Packer cleanup
+# Note that this must be the _last_ thing to run, since we are clearing every
+# user's .ssh directory!
+set -eu
+set -o pipefail
+
+# Force running as root
+# This prevents us from having to rewrite execute_command
+if (( "$(id -u)" != 0 )); then
+  exec sudo "$(readlink -f "$0")"
+fi
+
+yum clean all
+
+rm -rf \
+  /var/log/cloud-init-output.log \
+  /var/log/cloud-init.log \
+  /var/lib/cloud/instance \
+  /var/lib/cloud/instances \
+  /var/lib/cloud/sem \
+  /var/lib/cloud/data \
+  /tmp/* \
+  /var/log/secure \
+  /var/log/wtmp \
+  /etc/hostname \
+  /etc/machine-id \
+  /etc/resolv.conf \
+  /etc/ssh/ssh_host* \
+  /home/*/.ssh/* \
+  /root/.ssh/* \
+  /root/.cache/* \
+  /var/lib/dhclient/* \
+  /var/lib/dhcp/dhclient.* \
+  /var/lib/yum/history
+
+touch /etc/machine-id
+
+cloud-init clean --logs

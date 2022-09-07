@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Kernel parameter tuning for MongoDB
+# See each referenced file under `resources/` for details
+set -euo pipefail
+
+# Force running as root
+# This prevents us from having to rewrite execute_command
+if (( "$(id -u)" != 0 )); then
+  exec sudo "$(readlink -f "$0")"
+fi
+
+install -d /etc/sysctl.d -D -o root -g root -m 0755
+install -t /etc/sysctl.d -D -o root -g root -m 0644 /tmp/sysctl.d/*
+
+install -d /etc/limits.d -D -o root -g root -m 0755
+install -t /etc/limits.d -D -o root -g root -m 0644 /tmp/limits.d/*
+
+install -d /etc/tuned/virtual-guest-no-thp -D -o root -g root -m 0755
+install -t /etc/tuned/virtual-guest-no-thp -D -o root -g root -m 0644 /tmp/tuned/*
+
+yum -q install -y tuned
+systemctl enable tuned
+systemctl start tuned
+tuned-adm profile virtual-guest-no-thp

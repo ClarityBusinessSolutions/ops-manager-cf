@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+# Base system package updates and configuration
+set -euo pipefail
+
+sudo yum update -y
