@@ -28,4 +28,5 @@ variable "source_ami_owner" {
     AWS account ID that owns the source AMI.
     The default is the account ID for certified RedHat images.
     EOD
+  default     = "309956199498"
 }
