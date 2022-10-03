@@ -317,6 +317,7 @@ Resources:
       ImageId: !Ref "OpsManagerAmi"
       IamInstanceProfile: !Ref 'MongoDBNodeIAMProfile'
       KeyName: !Ref "KeyName"
+      SubnetId: !Ref 'OpsManagerSubnet'
       Volumes:
         - Device: /dev/xvdf
           VolumeId: !Ref OpsManagerVolume
