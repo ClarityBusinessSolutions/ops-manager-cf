@@ -159,7 +159,7 @@ Parameters:
   VersionSource:
     Description: Indicates the source of MongoDB installer binaries.
     Type: String
-    Default: hybrid
+    Default: remote
     AllowedValues:
       - remote
       - hybrid
