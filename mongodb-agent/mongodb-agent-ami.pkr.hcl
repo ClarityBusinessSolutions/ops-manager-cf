@@ -26,16 +26,16 @@ source "amazon-ebs" "mongodb-automation-agent" {
   ebs_optimized     = true
   shutdown_behavior = "terminate"
 
-  ami_name = "mongodb-automation-agent-image-bah-${local.name_ts}"
+  ami_name = "mongodb-automation-agent-image-mdb6-${local.name_ts}"
 
   ami_description = join(" ", [
-    "MongoDB Automation Agent AMI."
+    "MongoDB Automation Agent for Ops Manager 6.0.3 AMI."
   ])
 
   tags = {
-    "Name"  = "MongoDB Automation Agent"
+    "Name"  = "MongoDB Automation Agent for Ops Manager 6.0.3"
     "description" = join(" ", [
-      "MongoDB Automation Agent AMI."
+      "MongoDB Automation Agent for Ops Manager 6.0.3 AMI."
     ])
     "build_time"        = local.ts
     "io.packer.version" = packer.version

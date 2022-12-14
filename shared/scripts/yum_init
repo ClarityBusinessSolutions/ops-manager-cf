@@ -24,12 +24,12 @@ yum-config-manager --save \
 
 ## Install MongoDB Enterprise
 cat << 'ENDCONF' | sudo tee /etc/yum.repos.d/mongodb-enterprise-5.0.repo
-[mongodb-enterprise-5.0]
+[mongodb-enterprise-6.0]
 name=MongoDB Enterprise Repository
-baseurl=https://repo.mongodb.com/yum/redhat/$releasever/mongodb-enterprise/5.0/$basearch/
+baseurl=https://repo.mongodb.com/yum/redhat/$releasever/mongodb-enterprise/6.0/$basearch/
 gpgcheck=1
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-5.0.asc
+gpgkey=https://www.mongodb.org/static/pgp/server-6.0.asc
 ENDCONF
 
 # Prepare for subsequent yum commands

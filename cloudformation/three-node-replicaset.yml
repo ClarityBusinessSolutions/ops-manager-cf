@@ -218,9 +218,8 @@ Resources:
             # Data Directory Creation
             #################################################################
             mkdir /data/db
-            chown mongod:mongod /data/db
             mkdir /data/logs
-            chown mongod:mongod /data/logs
+            chown -R mongod:mongod /data
             
             #################################################################
             # Automation Agent Configuration

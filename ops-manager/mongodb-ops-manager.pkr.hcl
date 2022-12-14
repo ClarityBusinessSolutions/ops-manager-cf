@@ -26,15 +26,15 @@ source "amazon-ebs" "mongodb-ops-manager" {
   ebs_optimized     = true
   shutdown_behavior = "terminate"
 
-  ami_name = "mongodb-ops-manager-bah-image-${local.name_ts}"
+  ami_name = "mongodb-ops-manager-6-image-${local.name_ts}"
   ami_description = join(" ", [
-    "MongoDB Ops Manager AMI."
+    "MongoDB Ops Manager 6.0.3 AMI."
   ])
 
   tags = {
-    "Name"  = "MongoDB Ops Manager"
+    "Name"  = "MongoDB Ops Manager 6.0.3"
     "description" = join(" ", [
-      "MongoDB Ops Manager AMI."
+      "MongoDB Ops Manager 6.0.3 AMI."
     ])
     "build_time"        = local.ts
     "io.packer.version" = packer.version
@@ -46,8 +46,8 @@ source "amazon-ebs" "mongodb-ops-manager" {
     "source_ami.owner.name" = "{{ .SourceAMIOwnerName }}"
 
     # Software versions
-    "com.mongodb.db_tools.version"          = "5.0.11"
-    "com.mongodb.enterprise_server.version" = "5.0.11"
+    "com.mongodb.db_tools.version"          = "6.0.3"
+    "com.mongodb.enterprise_server.version" = "6.0.3"
     "com.mongodb.ops_manager.version"       = var.ops_manager_version
   }
 

@@ -24,15 +24,16 @@ trap _cleanup_tmpdir EXIT
 
 echo 0 > /sys/fs/selinux/enforce
 
-yum -y install \
-       cyrus-sasl \
-       cyrus-sasl-gssapi \
-       cyrus-sasl-plain \
-       krb5-libs \
-       libcurl \
-       net-snmp \
-       net-snmp-libs \
-       nvme-cli \
-       openldap \
-       openssl \
-       xz-libs 
+## Install Dependencies
+yum install -y cyrus-sasl \
+               cyrus-sasl-gssapi \
+               cyrus-sasl-plain \
+               krb5-libs libcurl \
+               lm_sensors-libs \
+               net-snmp \
+               net-snmp-agent-libs \
+               nvme-cli \
+               openldap \
+               openssl \
+               jq \
+               xz-libs

@@ -25,26 +25,26 @@ trap _cleanup_tmpdir EXIT
 
 ## Install Dependencies
 yum -y install \
+       checkpolicy \
        cyrus-sasl \
        cyrus-sasl-gssapi \
        cyrus-sasl-plain \
+       git \
        krb5-libs \
        libcurl \
+       make \
        net-snmp \
        net-snmp-libs \
        nvme-cli \
        openldap \
        openssl \
+       policycoreutils \
+       selinux-policy-devel \
        xz-libs 
 
 
 
-yum install -y mongodb-enterprise-5.0.11 \
-               mongodb-enterprise-database-5.0.11 \
-               mongodb-enterprise-server-5.0.11 \
-               mongodb-enterprise-shell-5.0.11 \
-               mongodb-enterprise-mongos-5.0.11 \
-               mongodb-enterprise-tools-5.0.11
+yum install -y mongodb-enterprise
 
 # Install Ops Manager
 rpm -i /tmp/download/mongodb-mms-*.x86_64.rpm

@@ -270,6 +270,9 @@ Resources:
                   - ec2:DeleteVolume
                   - ec2:CreateSecurityGroup
                   - ec2:CreateSnapshot
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
                 Resource: '*'
   
   MongoDBNodeIAMProfile:
@@ -279,6 +282,11 @@ Resources:
       Roles:
         - !Ref 'MongoDBNodeIAMRole'
 
+  SnapshotBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "ops-manager-snapshot-bucket"
+  
   OpsManagerVolume:
     Type: "AWS::EC2::Volume"
     Properties:
@@ -391,7 +399,7 @@ Resources:
 
           systemctl start mongod
 
-          mongo --port 27017 << EOF
+          mongosh --port 27017 << EOF
           use admin;
           db.createUser({
             user: "${MongoDBAdminUsername}",
@@ -400,7 +408,7 @@ Resources:
           });
           EOF
 
-          mongo -u ${MongoDBAdminUsername} -p ${MongoDBAdminPassword} --port 27017 << EOF
+          mongosh -u ${MongoDBAdminUsername} -p ${MongoDBAdminPassword} --port 27017 << EOF
           use admin;
           db.createUser({
             user: "${OpsManagerMDBUsername}",

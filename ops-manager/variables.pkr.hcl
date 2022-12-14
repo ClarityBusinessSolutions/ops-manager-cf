@@ -9,7 +9,7 @@ variable "ops_manager_version" {
     At this time, only versions 5.0.x are supported.
     See https://www.mongodb.com/try/download/ops-manager for all available versions.
     EOD
-  default    = "5.0.14.100.20220802T1010Z-1"
+  default    = "6.0.7.100.20221129T1435Z"
 }
 
 # Optional Variables

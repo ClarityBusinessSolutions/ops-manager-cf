@@ -26,7 +26,7 @@ echo "Downloading Ops Manager"
 _curl -O "https://downloads.mongodb.com/on-prem-mms/rpm/mongodb-mms-${OPS_MANAGER_VERSION}.x86_64.rpm"
 
 # Ops Manager docs
-_curl -o ops-manager-docs.tgz "https://docs.opsmanager.mongodb.com/v5.0/mms-onprem.tar.gz"
+_curl -o ops-manager-docs.tgz "https://docs.opsmanager.mongodb.com/v6.0/mms-onprem.tar.gz"
 
 # Version manifest
-_curl -o mongodb_version_manifest.json "https://opsmanager.mongodb.com/static/version_manifest/5.0.json"
+_curl -o mongodb_version_manifest.json "https://opsmanager.mongodb.com/static/version_manifest/6.0.json"
