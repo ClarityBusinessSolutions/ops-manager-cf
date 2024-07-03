@@ -22,17 +22,27 @@ _cleanup_tmpdir() {
 
 trap _cleanup_tmpdir EXIT
 
-echo 0 > /sys/fs/selinux/enforce
-
 yum -y install \
+       checkpolicy \
        cyrus-sasl \
        cyrus-sasl-gssapi \
        cyrus-sasl-plain \
+       git-core \
        krb5-libs \
        libcurl \
+       make \
        net-snmp \
-       net-snmp-libs \
-       nvme-cli \
+       numactl \
        openldap \
        openssl \
-       xz-libs 
+       policycoreutils \
+       selinux-policy-devel \
+       xz-libs
+
+yum install -y mongodb-enterprise-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-database-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-server-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-mongos-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-tools-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION}
+
+systemctl enable mongod

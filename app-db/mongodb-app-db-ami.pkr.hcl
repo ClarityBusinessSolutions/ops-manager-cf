@@ -1,12 +1,4 @@
-# Main packer configuration for the MongoDB Automation Agegent AMI
-packer {
-  required_plugins {
-    amazon = {
-      version = ">= 1.2.8"
-      source  = "github.com/hashicorp/amazon"
-    }
-  }
-}
+# Main packer configuration for the Ops Manager AppDB Agegent AMI
 
 locals {
   # Use a common timestamp throughout
@@ -26,7 +18,7 @@ data "amazon-ami" "rhel-8" {
   region      = "us-east-1"
 }
 
-source "amazon-ebs" "mongodb-automation-agent" {
+source "amazon-ebs" "mongodb-app-db" {
   source_ami        = data.amazon-ami.rhel-8.id
   ssh_username      = "ec2-user"
   instance_type     = var.instance_type
@@ -34,16 +26,16 @@ source "amazon-ebs" "mongodb-automation-agent" {
   ebs_optimized     = true
   shutdown_behavior = "terminate"
 
-  ami_name = "mongodb-automation-agent-opsmgr-${var.mongodb_major_version}-image-${local.name_ts}"
+  ami_name = "mongodb-appdb-image-${var.mongodb_major_version}_${var.mongodb_patch_version}_${local.name_ts}"
 
   ami_description = join(" ", [
-    "MongoDB Automation Agent AMI."
+    "MongoDB Ops Manager AppDB AMI."
   ])
 
   tags = {
-    "Name"  = "MongoDB Automation Agent"
+    "Name"  = "MongoDB Ops Manager AppDB"
     "description" = join(" ", [
-      "MongoDB Automation Agent AMI."
+      "MongoDB Ops Manager AppDB AMI."
     ])
     "build_time"        = local.ts
     "io.packer.version" = packer.version
@@ -57,6 +49,7 @@ source "amazon-ebs" "mongodb-automation-agent" {
     # Software versions
     "com.mongodb.db_tools.version"         = var.db_tools_version
     "com.mongodb.major_version"            = var.mongodb_major_version
+    "com.mongodb.patch_version"            = var.mongodb_patch_version
   }
 
   launch_block_device_mappings {
@@ -89,10 +82,15 @@ source "amazon-ebs" "mongodb-automation-agent" {
 }
 
 build {
-  sources = ["source.amazon-ebs.mongodb-automation-agent"]
+  sources = ["source.amazon-ebs.mongodb-app-db"]
 
   provisioner "file" {
     source      = "../shared/resources/"
+    destination = "/tmp/"
+  }
+
+  provisioner "file" {
+    source      = "./resources/"
     destination = "/tmp/"
   }
 
@@ -101,6 +99,14 @@ build {
       "echo 'Waiting for cloud-init ...'",
       "sudo cloud-init status --wait || true"
     ]
+  }
+
+  provisioner "shell" {
+    environment_vars = [
+      "MONGODB_MAJOR_VERSION=${var.mongodb_major_version}"
+    ]
+    execute_command = "{{.Vars}} sudo -E -S bash '{{.Path}}'"
+    script = "../shared/scripts/yum_init"
   }
 
   provisioner "shell" {
@@ -113,13 +119,10 @@ build {
 
   provisioner "shell" {
     environment_vars = [
-      "DB_TOOLS_VERSION=${var.db_tools_version}"
+      "MONGODB_MAJOR_VERSION=${var.mongodb_major_version}",
+      "MONGODB_PATCH_VERSION=${var.mongodb_patch_version}"
     ]
     execute_command = "{{.Vars}} sudo -E -S bash '{{.Path}}'"
-    script = "./scripts/initial_download"
-  }
-
-  provisioner "shell" {
     script = "./scripts/install_software"
   }
 
@@ -127,3 +130,4 @@ build {
     script = "../shared/scripts/cleanup"
   }
 }
+

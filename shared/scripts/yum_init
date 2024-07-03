@@ -1,7 +1,16 @@
 #!/bin/bash
 #
+# The following required environment variables determine the software versions to install:
+# - MONGODB_MAJOR_VERSION: The major release of the MongoDB respository to use.
+
 # Set up yum
 set -euo pipefail
+
+# Check required vars before we start downloading
+if [[ -z "${MONGODB_MAJOR_VERSION}" ]]; then
+  echo "Error: MONGODB_MAJOR_VERSION unset."
+  exit 1
+fi
 
 # Force running as root
 # This prevents us from having to rewrite execute_command
@@ -23,13 +32,13 @@ yum-config-manager --save \
   &>/dev/null
 
 ## Install MongoDB Enterprise
-cat << 'ENDCONF' | sudo tee /etc/yum.repos.d/mongodb-enterprise-5.0.repo
-[mongodb-enterprise-5.0]
+cat <<ENDCONF | sudo tee /etc/yum.repos.d/mongodb-enterprise-${MONGODB_MAJOR_VERSION}.repo
+[mongodb-enterprise-$MONGODB_MAJOR_VERSION]
 name=MongoDB Enterprise Repository
-baseurl=https://repo.mongodb.com/yum/redhat/$releasever/mongodb-enterprise/5.0/$basearch/
+baseurl=https://repo.mongodb.com/yum/redhat/\$releasever/mongodb-enterprise/$MONGODB_MAJOR_VERSION/\$basearch/
 gpgcheck=1
 enabled=1
-gpgkey=https://www.mongodb.org/static/pgp/server-5.0.asc
+gpgkey=https://www.mongodb.org/static/pgp/server-$MONGODB_MAJOR_VERSION.asc
 ENDCONF
 
 # Prepare for subsequent yum commands

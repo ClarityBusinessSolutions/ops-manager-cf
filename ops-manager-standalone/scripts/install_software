@@ -25,7 +25,6 @@ trap _cleanup_tmpdir EXIT
 
 ## Install Dependencies
 yum -y install \
-       checkpolicy \
        cyrus-sasl \
        cyrus-sasl-gssapi \
        cyrus-sasl-plain \
@@ -33,9 +32,24 @@ yum -y install \
        libcurl \
        net-snmp \
        net-snmp-libs \
+       nvme-cli \
        openldap \
        openssl \
        xz-libs 
+
+
+
+yum install -y mongodb-enterprise-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-database-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-server-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-mongosh \
+               mongodb-enterprise-mongos-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION} \
+               mongodb-enterprise-tools-${MONGODB_MAJOR_VERSION}.${MONGODB_PATCH_VERSION}
+
+systemctl enable mongod
+
+# Install Ops Manager
+rpm -i /tmp/download/mongodb-mms-*.x86_64.rpm
 
 # Add default info for configuring ops manager
 mv /opt/mongodb/mms/conf/conf-mms.properties /opt/mongodb/mms/conf/conf-mms.properties.old

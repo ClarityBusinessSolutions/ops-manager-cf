@@ -22,10 +22,9 @@ _cleanup_tmpdir() {
 
 trap _cleanup_tmpdir EXIT
 
+echo 0 > /sys/fs/selinux/enforce
 
-## Install Dependencies
 yum -y install \
-       checkpolicy \
        cyrus-sasl \
        cyrus-sasl-gssapi \
        cyrus-sasl-plain \
@@ -33,17 +32,8 @@ yum -y install \
        libcurl \
        net-snmp \
        net-snmp-libs \
+       numactl \
+       nvme-cli \
        openldap \
        openssl \
        xz-libs 
-
-# Add default info for configuring ops manager
-mv /opt/mongodb/mms/conf/conf-mms.properties /opt/mongodb/mms/conf/conf-mms.properties.old
-cat /opt/mongodb/mms/conf/conf-mms.properties.old /tmp/mms-conf/headless.properties > "${tmpdir}"/conf-mms.properties
-install -t /opt/mongodb/mms/conf -D -o root -g root -m 0644 "${tmpdir}"/conf-mms.properties
-
-# Version manifest
-# See `initial_download` script
-sudo install -t /opt/mongodb/mms/conf -D -o mongodb-mms -g mongodb-mms -m 0644 /tmp/download/mongodb_version_manifest.json
-
-systemctl enable mongodb-mms

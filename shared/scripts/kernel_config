@@ -16,10 +16,22 @@ install -t /etc/sysctl.d -D -o root -g root -m 0644 /tmp/sysctl.d/*
 install -d /etc/limits.d -D -o root -g root -m 0755
 install -t /etc/limits.d -D -o root -g root -m 0644 /tmp/limits.d/*
 
-install -d /etc/tuned/virtual-guest-no-thp -D -o root -g root -m 0755
-install -t /etc/tuned/virtual-guest-no-thp -D -o root -g root -m 0644 /tmp/tuned/*
+cat << 'ENDSCRIPT' | sudo tee /etc/systemd/system/disable-transparent-huge-pages.service
+[Unit]
+Description=Disable Transparent Huge Pages (THP)
+DefaultDependencies=no
+After=sysinit.target local-fs.target
+Before=mongod.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo never | tee /sys/kernel/mm/transparent_hugepage/enabled > /dev/null'
+[Install]
+WantedBy=basic.target
+ENDSCRIPT
 
-yum -q install -y tuned
-systemctl enable tuned
-systemctl start tuned
-tuned-adm profile virtual-guest-no-thp
+chmod 755 /etc/systemd/system/disable-transparent-huge-pages.service
+
+systemctl daemon-reload
+systemctl start disable-transparent-huge-pages
+systemctl enable disable-transparent-huge-pages
+

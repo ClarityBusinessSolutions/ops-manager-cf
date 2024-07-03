@@ -1,3 +1,16 @@
+# Variables for MongoDB AMI build
+
+# Required variables
+
+variable "ops_manager_version" {
+  type        = string
+  description = <<-EOD
+    The version of MongoDB Ops Manager to install.
+    At this time, only versions 5.0.x are supported.
+    See https://www.mongodb.com/try/download/ops-manager for all available versions.
+    EOD
+  default    = "7.0.8.500.20240627T1703Z"
+}
 
 variable "mongodb_major_version" {
   type        = string
@@ -8,18 +21,22 @@ variable "mongodb_major_version" {
     https://www.mongodb.com/try/download/enterprise-advanced/releases/archive
     for all archived rleases.
     EOD
-  default     = "6.0"
+  default     = "7.0"
 }
 
-variable "db_tools_version" {
+variable "mongodb_patch_version" {
   type        = string
   description = <<-EOD
-    The version of MongoDB Database Tools to install.
-    See https://www.mongodb.com/try/download/database-tools for all available versions.
+    The version of MongoDB Database to install.
+    See https://www.mongodb.com/try/download/enterprise-advanced/releases 
+    for all current releases and 
+    https://www.mongodb.com/try/download/enterprise-advanced/releases/archive
+    for all archived rleases.
     EOD
-  default     = "100.5.2"
+  default     = "7"
 }
 
+# Optional Variables
 variable "source_ami_name" {
   type        = string
   description = <<-EOD

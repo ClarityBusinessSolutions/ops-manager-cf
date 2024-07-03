@@ -21,12 +21,12 @@ data "amazon-ami" "rhel-8" {
 source "amazon-ebs" "mongodb-ops-manager" {
   source_ami        = data.amazon-ami.rhel-8.id
   ssh_username      = "ec2-user"
-  instance_type     = "t3.medium"
-  region            = "us-east-1"
+  instance_type     = var.instance_type
+  region            = var.region
   ebs_optimized     = true
   shutdown_behavior = "terminate"
 
-  ami_name = "mongodb-ops-manager-bah-image-${local.name_ts}"
+  ami_name = "mongodb-ops-manager-${var.ops_manager_version}-standalone-image-${local.name_ts}"
   ami_description = join(" ", [
     "MongoDB Ops Manager AMI."
   ])
@@ -46,8 +46,7 @@ source "amazon-ebs" "mongodb-ops-manager" {
     "source_ami.owner.name" = "{{ .SourceAMIOwnerName }}"
 
     # Software versions
-    "com.mongodb.db_tools.version"          = "5.0.11"
-    "com.mongodb.enterprise_server.version" = "5.0.11"
+    "com.mongodb.enterprise_server.version" = "${var.mongodb_major_version}.${var.mongodb_patch_version}"
     "com.mongodb.ops_manager.version"       = var.ops_manager_version
   }
 
@@ -100,6 +99,10 @@ build {
     ]
   }
   provisioner "shell" {
+    environment_vars = [
+      "MONGODB_MAJOR_VERSION=${var.mongodb_major_version}"
+    ]
+    execute_command = "{{.Vars}} sudo -E -S bash '{{.Path}}'"
     script = "../shared/scripts/yum_init"
   }
   provisioner "shell" {
@@ -110,11 +113,19 @@ build {
   }
   provisioner "shell" {
     environment_vars = [
-      "OPS_MANAGER_VERSION=${var.ops_manager_version}"
+      "OPS_MANAGER_VERSION=${var.ops_manager_version}",
+      "MONGODB_MAJOR_VERSION=${var.mongodb_major_version}"
     ]
+    execute_command = "{{.Vars}} sudo -E -S bash '{{.Path}}'"
     script = "./scripts/initial_download"
   }
   provisioner "shell" {
+    environment_vars = [
+      "OPS_MANAGER_VERSION=${var.ops_manager_version}",
+      "MONGODB_MAJOR_VERSION=${var.mongodb_major_version}",
+      "MONGODB_PATCH_VERSION=${var.mongodb_patch_version}"
+    ]
+    execute_command = "{{.Vars}} sudo -E -S bash '{{.Path}}'"
     script = "./scripts/install_software"
   }
 
